@@ -1,0 +1,149 @@
+<center><font face="黑体" size=7>二叉树中的最大路径和</font></center>
+
+## 题目描述：
+
+给定一个**非空**二叉树，返回其最大路径和。
+
+本题中，路径被定义为一条从树中任意节点出发，达到任意节点的序列。该路径**至少包含一个**节点，且不一定经过根节点。
+**示例1：**
+
+```
+输入: [1,2,3]
+
+       1
+      / \
+     2   3
+
+输出: 6
+```
+
+**示例2：**
+
+```
+输入: [-10,9,20,null,null,15,7]
+
+   -10
+   / \
+  9  20
+    /  \
+   15   7
+
+输出: 42
+```
+
+
+
+## 解题思路：
+
+***第一步：***
+	在二叉树中，除了叶子节点以外，每个节点都具有一到多个子节点，假设存在非叶子节点 F，它有 n 个子节点，分别设为 C<sub>1</sub>，C<sub>2</sub>，……，C<sub>n</sub>。设 F 到 C<sub>i</sub> **(1$\leq$i$\leq$n)**的路径和为 S<sub>i</sub>，取出其中最大值 S<sub>max</sub> **(S<sub>max</sub> 是否唯一无影响)**，与 F 本身的值相加得到 F 向下最大路径和 $$ds(F)=\begin{cases}F.val + S_ {max}&S_{max}>0\\F.val+0 &S_{max} <0\end{cases}$$。叶子节点的向下最大路径和为其本身。
+
+​	采用递归的方式得到每一个节点的向下最大路径和，节点和其向下最大路径和之间的关系用Map来保存。
+
+​	遍历这些最大向下路径和，找出其中最大值记为 $$r1$$。
+
+```java
+public static int setMap(TreeNode root, Map<TreeNode, Integer> map)
+{
+    if(root.left == null && root.right == null)//基本情况
+        map.put(root, root.val);
+    else if(root.left == null)
+        map.put(root, root.val + setMap(root.right, map));
+    else if(root.right == null)
+        map.put(root, root.val + setMap(root.left, map));
+    else
+    {
+        int l = setMap(root.left, map);
+        int r = setMap(root.right, map);
+        int max = l > r ? l : r;
+        map.put(root, root.val + max);
+    }
+    return map.get(root) > 0 ? map.get(root) : 0;
+}
+```
+***第二步***：
+	此时就要考虑二叉树本身的固有性质了，现在已经求得了每个节点的向下最大路径和，其中具体路径一定是自上而下**(或者说自下而上，二者没有区别)**，即呈 ”/“ 或者 ”\“ 形状的。而题目所要求的最大路径和的具体路径却不一定是如此，它还有可能是自下而上再往下，即呈一个 ”Λ“ 形状的。为了求出最大路径和我们需要综合考虑这两种情况，其中第一种情况以及得出，现在要做的是想办法解决第二种情况。
+
+***第三步：***
+
+​	实际情况也不复杂，还需要用到之前所求的每一个节点的向下最大路径和。假设存在节点 F ，它有两个直接相连的子节点 C<sub>1</sub>，C<sub>2</sub>。其”Λ“ 形最大路径和为 $$uds(F)=ds(C_1)+ds(C_2)+F.val$$，只有一个子节点和叶子节点都被归类到了第一种情况，此时不用作考虑了。
+
+​	对每一个具有两个以上子节点的节点进行uds操作，取出其中最大值记为 $$r2$$。
+
+***第四步：***
+	比较$$r1$$ , $$r2$$, 其中较大者即为最终结果。
+
+完整代码如下：
+
+```
+/**
+ * Definition for a binary tree node.
+ * public class TreeNode {
+ *     int val;
+ *     TreeNode left;
+ *     TreeNode right;
+ *     TreeNode(int x) { val = x; }
+ * }
+ */
+class Solution {
+    public static int maxPathSum(TreeNode root) 
+    {
+        Map<TreeNode, Integer> map = new HashMap<TreeNode, Integer>();
+        setMap(root, map);
+
+        ArrayList<TreeNode> nodes = new ArrayList<>();
+        order(root, nodes);
+
+        int r1 = findMax(map);
+
+        int r2 = -10000000;
+        for(Map.Entry<TreeNode, Integer> entry : map.entrySet())
+        {
+            int v = entry.getKey().val;
+            if(entry.getKey().left != null) v += map.get(entry.getKey().left);
+            if(entry.getKey().right != null) v += map.get(entry.getKey().right);
+            r2 = v > r2 ? v : r2;
+        }
+
+        return r1 > r2 ? r1 : r2;
+    }
+
+    public static int setMap(TreeNode root, Map<TreeNode, Integer> map)
+    {
+        if(root.left == null && root.right == null)
+            map.put(root, root.val);
+        else if(root.left == null)
+            map.put(root, root.val + setMap(root.right, map));
+        else if(root.right == null)
+            map.put(root, root.val + setMap(root.left, map));
+        else
+        {
+            int l = setMap(root.left, map);
+            int r = setMap(root.right, map);
+            int max = l > r ? l : r;
+            map.put(root, root.val + max);
+        }
+        return map.get(root) > 0 ? map.get(root) : 0;
+    }
+
+    public static void order(TreeNode node, ArrayList<TreeNode> nodes)
+    {
+        if(node == null)
+            return;
+
+        order(node.left, nodes);
+        nodes.add(node);
+        order(node.right, nodes);
+    }
+
+    public static int findMax(Map<TreeNode, Integer> map)
+    {
+        int max = -1000000;
+        for(Map.Entry<TreeNode, Integer> enter : map.entrySet())
+            max = enter.getValue() > max ? enter.getValue() : max;
+        return max;
+    }
+}
+```
+
+*注：leetcode上运行通过，但时间性能和空间性能都不太好，因此这个方法只是能解决问题，但解决的方式并不好。*
